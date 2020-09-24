@@ -1,6 +1,12 @@
 output "registry-id" {
-  value = yandex_iot_core_registry.iot-registry.id
+  value = module.iot.registry-id
+}
+output "registry-password" {
+  value = module.iot.registry-password
 }
 output "device-id" {
-  value = yandex_iot_core_device.rpi-device.id
+  value = module.iot.device-id
+}
+output "device-pasword" {
+  value = module.iot.device-password
 }

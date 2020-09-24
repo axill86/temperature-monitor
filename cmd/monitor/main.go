@@ -2,22 +2,48 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"runtime"
-	"text/tabwriter"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"temperature-monitor/internal/monitor/config"
+	"temperature-monitor/internal/monitor/notification"
 )
 
-func main() {
-	fmt.Println("This is the simple temperature monitor")
-	fmt.Println("==============")
-	fmt.Println("Not implemented yet")
-	printEnv()
+var configFile string
+var configuration *config.Config = &config.Config{}
+var rootCmd = &cobra.Command{
+	Use:   "monitor",
+	Short: "monitor sends temperature notifications to mqtt",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Starting temperature monitor")
+		mqttClient, err := config.CreateMqttClient(&configuration.Mqtt)
+		if err != nil {
+			panic(err)
+		}
+		notifier := notification.NewMqttSender(mqttClient, configuration.Mqtt.Topic)
+		notifier.Notify(notification.Data{
+			DeviceName:  configuration.DeviceName,
+			Temperature: 0,
+		})
+	},
 }
 
-func printEnv() {
-	fmt.Println("Current environment is:")
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
-	fmt.Fprintln(tw, "GOOS\t", runtime.GOOS)
-	fmt.Fprintln(tw, "GOARCH\t", runtime.GOARCH)
-	tw.Flush()
+func initConfig() {
+	if configFile != "" {
+		viper.SetConfigFile(configFile)
+	}
+	viper.SetConfigType("yaml")
+	if err := viper.ReadInConfig(); err != nil {
+		panic(err)
+	}
+	viper.Unmarshal(configuration)
+	fmt.Println("Reading configuration from", viper.ConfigFileUsed())
+}
+
+func main() {
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Configuration file")
+	rootCmd.MarkFlagRequired("config")
+	cobra.OnInitialize(initConfig)
+	if err := rootCmd.Execute(); err != nil {
+		panic(err)
+	}
 }
