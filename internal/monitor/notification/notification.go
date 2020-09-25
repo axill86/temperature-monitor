@@ -6,12 +6,13 @@ package notification
 import (
 	"encoding/json"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"time"
 )
 
 // Data contains notification data
 type Data struct {
-	DeviceName  string
 	Temperature float32
+	Timestamp   time.Time
 }
 
 type Sender interface {
