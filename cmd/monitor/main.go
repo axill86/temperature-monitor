@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"temperature-monitor/internal/monitor/config"
 	"temperature-monitor/internal/monitor/notification"
 	"temperature-monitor/internal/monitor/temperature"
-	"time"
 )
 
 var configFile string
@@ -20,37 +20,41 @@ var rootCmd = &cobra.Command{
 	Short: "monitor sends temperature notifications to mqtt",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Starting temperature monitor")
-		mqttClient, err := config.CreateMqttClient(&configuration.Mqtt)
+
+		sender, err := notification.NewMqttSender(
+			[]byte(configuration.Mqtt.RootCa),
+			configuration.Mqtt.Username,
+			configuration.Mqtt.Password,
+			configuration.Mqtt.BrokerUrl,
+			configuration.Mqtt.Topic)
+
+		reader, err := temperature.NewIntervalReader(configuration.Interval,
+			configuration.I2C.Bus,
+			configuration.I2C.Address,
+			func(measurement temperature.Measurement) {
+				log.Printf("Measured  %v", measurement)
+				err = sender.Notify(notification.Data{
+					Temperature: measurement.Temp,
+					Humidity:    measurement.Humidity,
+					Timestamp:   measurement.Timestamp,
+				})
+				if err != nil {
+					log.Println("Seeing error...", err)
+				}
+			})
 		if err != nil {
 			panic(err)
 		}
-		ticker := time.NewTicker(configuration.Interval)
-		defer ticker.Stop()
+		defer reader.Stop()
+		reader.Start()
+		//interruption channel
 		s := make(chan os.Signal)
-		d := make(chan notification.Data)
 		signal.Notify(s, syscall.SIGTERM, syscall.SIGINT)
-		sender := notification.NewMqttSender(mqttClient, configuration.Mqtt.Topic)
-		reader := temperature.NewReader()
-		go notify(d, sender)
-		go read(ticker.C, d, reader)
 		//waiting till process finishes
 		<-s
 	},
 }
 
-func read(c <-chan time.Time, out chan<- notification.Data, reader temperature.Reader) {
-	defer close(out)
-	for t := range c {
-		temperature := reader.Read()
-		fmt.Println("Read temperature", temperature)
-		out <- notification.Data{Timestamp: t, Temperature: temperature}
-	}
-}
-func notify(c <-chan notification.Data, sender notification.Sender) {
-	for data := range c {
-		sender.Notify(data)
-	}
-}
 func initConfig() {
 	if configFile != "" {
 		viper.SetConfigFile(configFile)

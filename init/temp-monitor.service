@@ -1,0 +1,8 @@
+[Unit]
+Description=Temperature monitor
+
+[Service]
+ExecStart=/usr/sbin/temp-monitor --config=/var/lib/temp-monitor/configuration.yaml
+
+[Install]
+WantedBy=multi-user.target

@@ -3,4 +3,4 @@ out/
 **/.terraform/
 **/*.tfstate*
 **/*.tfvars
-/configs/
+/configs/configuration.yaml

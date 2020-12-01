@@ -1,0 +1,16 @@
+mqtt:
+    brokerUrl: ssl://mqtt.cloud.yandex.net:8883
+    topic: $me/device/events
+    deviceId: device_name #Got from terraform output
+    username: username #Got from terraform output
+    password: password
+    # Certificate is required to set up mqtt connection
+    # https://cloud.yandex.ru/docs/iot-core/concepts/mqtt-properties
+    rootCa:
+
+deviceName: rpi4
+interval: 5s
+#address of temperature sensor on i2c bus
+i2c:
+  bus: 1
+  address: 0x76
